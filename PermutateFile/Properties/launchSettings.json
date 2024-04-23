@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PermutateFile": {
+      "commandName": "Project",
+      "commandLineArgs": "c:\\123 5"
+    }
+  }
+}
