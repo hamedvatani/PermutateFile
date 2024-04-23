@@ -17,40 +17,91 @@
         try
         {
             var file = File.Open(filename, FileMode.Open);
-            var chunkCount = file.Length / chunkSize;
-            if (file.Length % chunkSize != 0)
-                chunkCount++;
-            var chunks = new List<byte[]>();
-            var set = new List<int>();
-            for (int j = 0; j < chunkCount; j++)
-            {
-                var data = new byte[chunkSize];
-                var length = file.Read(data, 0, data.Length);
-                chunks.Add(data.Take(length).ToArray());
-                set.Add(j);
-            }
+            var fileData = new byte[file.Length];
+            _ = file.Read(fileData, 0, fileData.Length);
             file.Close();
+
+            var chunkCount = fileData.Length / chunkSize;
+            var lastChunkSize = fileData.Length % chunkSize;
+            if (lastChunkSize != 0)
+                chunkCount++;
 
             var directory = Path.GetDirectoryName(filename);
             var pureFilename = Path.GetFileNameWithoutExtension(filename);
             var extension = Path.GetExtension(filename);
+
+            var set = new List<int>();
+            var dict = new Dictionary<int, int>();
+            for (var j = 0; j < chunkCount; j++)
+            {
+                set.Add(j);
+                if (j == chunkCount - 1 && lastChunkSize != 0)
+                    dict.Add(j, lastChunkSize);
+                else
+                    dict.Add(j, chunkSize);
+            }
+
             var permutations = GetPermutations(set);
             foreach (var permutation in permutations)
             {
+                var chunks = new List<byte[]>();
+                for (int j = 0; j < chunkCount; j++)
+                    chunks.Add(Array.Empty<byte>());
+
+                var read = 0;
+                for (var j = 0; j < permutation.Count; j++)
+                {
+                    var index = permutation[j];
+                    var size = dict[j];
+                    chunks[index] = fileData.Skip(read).Take(size).ToArray();
+                    read += size;
+                }
+
+
                 var newFilename = pureFilename;
                 foreach (var j in permutation)
                     newFilename += j;
                 newFilename += extension;
-
                 newFilename = Path.Combine(directory ?? "", newFilename);
-                var nfile = File.Open(newFilename, FileMode.Create);
-                foreach (var index in permutation)
-                {
-                    var data = chunks[index];
-                    nfile.Write(data, 0, data.Length);
-                }
-                nfile.Close();
+                var newFile = File.Open(newFilename, FileMode.Create);
+                for (int j = 0; j < chunkCount; j++)
+                    newFile.Write(chunks[j], 0, chunks[j].Length);
+                newFile.Close();
             }
+
+
+
+            // var chunks = new List<byte[]>();
+            // var set = new List<int>();
+            // for (int j = 0; j < chunkCount; j++)
+            // {
+            //     var data = new byte[chunkSize];
+            //     var length = file.Read(data, 0, data.Length);
+            //     chunks.Add(data.Take(length).ToArray());
+            //     set.Add(j);
+            // }
+            // file.Close();
+            //
+            // var directory = Path.GetDirectoryName(filename);
+            // var pureFilename = Path.GetFileNameWithoutExtension(filename);
+            // var extension = Path.GetExtension(filename);
+            // var permutations = GetPermutations(set);
+            // foreach (var permutation in permutations)
+            // {
+            //     var newFilename = pureFilename;
+            //     foreach (var j in permutation)
+            //         newFilename += j;
+            //     newFilename += extension;
+            //
+            //     newFilename = Path.Combine(directory ?? "", newFilename);
+            //     var nfile = File.Open(newFilename, FileMode.Create);
+            //     foreach (var index in permutation)
+            //     {
+            //         var data = chunks[index];
+            //         nfile.Write(data, 0, data.Length);
+            //     }
+            //     nfile.Close();
+            // }
         }
         catch (Exception ex)
         {
