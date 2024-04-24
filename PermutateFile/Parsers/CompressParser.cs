@@ -11,8 +11,10 @@ public class CompressParser : IParser
             var reader = ReaderFactory.Open(stream);
             while (reader.MoveToNextEntry())
             {
+                var ms = new MemoryStream();
+                reader.WriteEntryTo(ms);
             }
-
+        
             return false;
         }
         catch

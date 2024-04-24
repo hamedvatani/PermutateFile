@@ -1,139 +1,127 @@
 ﻿using PermutateFile.Parsers;
 
+if (args.Length == 0)
 {
-    if (args.Length == 0)
+    Console.WriteLine("Usage: PermutateFile <folder> <ChunkSize>, Default ChunkSize is 1048576");
+    return;
+}
+
+var chunkSize = 1048576;
+if (args.Length == 2)
+    int.TryParse(args[1], out chunkSize);
+
+var filenames = Directory.GetFiles(args[0], "*.*", SearchOption.AllDirectories);
+for (int i = 0; i < filenames.Length; i++)
+{
+    var filename = filenames[i];
+    Console.WriteLine($"Procesing {i + 1} of {filenames.Length}, {filename}");
+
+    var extension = Path.GetExtension(filename);
+
+    IParser? parser = null;
+    switch (extension.ToLower())
     {
-        Console.WriteLine("Usage: PermutateFile <folder> <ChunkSize>, Default ChunkSize is 1048576");
-        return;
+        case ".docx":
+        case ".pptx":
+        case ".rar":
+        case ".zip":
+            parser = new CompressParser();
+            break;
+        case ".jpg":
+        case ".jpeg":
+        case ".png":
+            parser = new ImageParser();
+            break;
+        case ".pdf":
+            parser = new PdfParser();
+            break;
     }
 
-    var chunkSize = 1048576;
-    if (args.Length == 2)
-        int.TryParse(args[1], out chunkSize);
-
-    var filenames = Directory.GetFiles(args[0], "*.*", SearchOption.AllDirectories);
-    for (int i = 0; i < filenames.Length; i++)
+    if (parser == null)
     {
-        var filename = filenames[i];
-        Console.WriteLine($"Procesing {i + 1} of {filenames.Length}, {filename}");
-
-        var extension = Path.GetExtension(filename);
-
-        IParser? parser = null;
-        switch (extension.ToLower())
-        {
-            case ".docx":
-            case ".pptx":
-            case ".rar":
-            case ".zip":
-                parser = new CompressParser();
-                break;
-            case ".jpg":
-            case ".jpeg":
-            case ".png":
-                parser = new ImageParser();
-                break;
-            case ".pdf":
-                parser = new PdfParser();
-                break;
-        }
-
-        if (parser == null)
-        {
-            MoveTo(filename, "NotProcessed");
-            continue;
-        }
-        else
-        {
-            var stream = File.OpenRead(filename);
-            var corrupted = parser.IsCorrupted(stream);
-            stream.Close();
-            if (!corrupted)
-            {
-                MoveTo(filename, "OK");
-                continue;
-            }
-        }
-
-        var file = File.Open(filename, FileMode.Open);
-        var fileData = new byte[file.Length];
-        _ = file.Read(fileData, 0, fileData.Length);
-        file.Close();
-
-        var chunkCount = fileData.Length / chunkSize;
-        var lastChunkSize = fileData.Length % chunkSize;
-        if (lastChunkSize != 0)
-            chunkCount++;
-
-        if (chunkCount >= 8)
-        {
-            MoveTo(filename, "Big");
-            continue;
-        }
-
-        var set = new List<int>();
-        var dict = new Dictionary<int, int>();
-        for (var j = 0; j < chunkCount; j++)
-        {
-            set.Add(j);
-            if (j == chunkCount - 1 && lastChunkSize != 0)
-                dict.Add(j, lastChunkSize);
-            else
-                dict.Add(j, chunkSize);
-        }
-
-        var permutations = GetPermutations(set);
-
-        var answers = new List<byte[]>();
-        foreach (var permutation in permutations)
-        {
-            var orj = true;
-            for (int j = 0; j < permutation.Count; j++)
-                if (permutation[j] != j)
-                {
-                    orj = false;
-                    break;
-                }
-
-            if (orj)
-                continue;
-
-            var chunks = new List<byte>[chunkCount];
-            var skip = 0;
-            foreach (var idx in permutation)
-            {
-                var take = dict[idx];
-                chunks[idx] = fileData.Skip(skip).Take(take).ToList();
-                skip += take;
-            }
-
-            var newFileData = new List<byte>();
-            for (int j = 0; j < chunkCount; j++)
-                newFileData.AddRange(chunks[j]);
-
-            var stream = new MemoryStream(newFileData.ToArray());
-            if (!parser.IsCorrupted(stream))
-                answers.Add(newFileData.ToArray());
-        }
-
-        if (answers.Count == 1)
-        {
-            WriteTo(filename, "OK", answers[0], -1);
-            File.Delete(filename);
-        }
-        else if (answers.Count > 1)
-        {
-            for (var j = 0; j < answers.Count; j++)
-            {
-                var answer = answers[j];
-                WriteTo(filename, "Multi", answer, j);
-            }
-
-            File.Delete(filename);
-        }
-        else
-            MoveTo(filename, "Corrupted");
+        MoveTo(filename, "NotProcessed");
+        continue;
     }
+
+    var file = File.Open(filename, FileMode.Open);
+    var fileData = new byte[file.Length];
+    _ = file.Read(fileData, 0, fileData.Length);
+    file.Close();
+
+    var chunkCount = fileData.Length / chunkSize;
+    var lastChunkSize = fileData.Length % chunkSize;
+    if (lastChunkSize != 0)
+        chunkCount++;
+
+    if (chunkCount >= 8)
+    {
+        MoveTo(filename, "Big");
+        continue;
+    }
+
+    var set = new List<int>();
+    var dict = new Dictionary<int, int>();
+    for (var j = 0; j < chunkCount; j++)
+    {
+        set.Add(j);
+        if (j == chunkCount - 1 && lastChunkSize != 0)
+            dict.Add(j, lastChunkSize);
+        else
+            dict.Add(j, chunkSize);
+    }
+
+    var permutations = GetPermutations(set);
+
+    var answers = new List<byte[]>();
+    foreach (var permutation in permutations)
+    {
+        var orj = true;
+        for (int j = 0; j < permutation.Count; j++)
+            if (permutation[j] != j)
+            {
+                orj = false;
+                break;
+            }
+
+        if (orj)
+            continue;
+
+        var chunks = new List<byte>[chunkCount];
+        var skip = 0;
+        foreach (var idx in permutation)
+        {
+            var take = dict[idx];
+            chunks[idx] = fileData.Skip(skip).Take(take).ToList();
+            skip += take;
+        }
+
+        var newFileData = new List<byte>();
+        for (int j = 0; j < chunkCount; j++)
+            newFileData.AddRange(chunks[j]);
+
+        var stream = new MemoryStream(newFileData.ToArray());
+        if (!parser.IsCorrupted(stream))
+            answers.Add(newFileData.ToArray());
+        stream.Close();
+    }
+
+    if (answers.Count == 1)
+    {
+        WriteTo(filename, "OK", answers[0], -1);
+        File.Delete(filename);
+    }
+    else if (answers.Count > 1)
+    {
+        for (var j = 0; j < answers.Count; j++)
+        {
+            var answer = answers[j];
+            WriteTo(filename, "Multi", answer, j);
+        }
+
+        File.Delete(filename);
+    }
+    else
+        MoveTo(filename, "Corrupted");
 }
 
 void MoveTo(string filename, string folder)
@@ -159,7 +147,7 @@ void WriteTo(string filename, string folder, byte[] fileData, int index)
         Directory.CreateDirectory(newFolder);
     string newFilename = "";
     
-    if (index > 0)
+    if (index >= 0)
         newFilename = Path.Combine(newFolder, pureFilename + $"_{index}") + extension;
     else
         newFilename = Path.Combine(newFolder, pureFilename) + extension;
