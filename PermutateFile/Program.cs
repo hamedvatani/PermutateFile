@@ -26,10 +26,6 @@
             if (lastChunkSize != 0)
                 chunkCount++;
 
-            var directory = Path.GetDirectoryName(filename);
-            var pureFilename = Path.GetFileNameWithoutExtension(filename);
-            var extension = Path.GetExtension(filename);
-
             var set = new List<int>();
             var dict = new Dictionary<int, int>();
             for (var j = 0; j < chunkCount; j++)
@@ -41,31 +37,36 @@
                     dict.Add(j, chunkSize);
             }
 
+            var directory = Path.GetDirectoryName(filename);
+            var pureFilename = Path.GetFileNameWithoutExtension(filename);
+            var extension = Path.GetExtension(filename);
+
             var permutations = GetPermutations(set);
             foreach (var permutation in permutations)
             {
-                var chunks = new List<byte[]>();
-                for (int j = 0; j < chunkCount; j++)
-                    chunks.Add(Array.Empty<byte>());
-
-                var read = 0;
-                for (var j = 0; j < permutation.Count; j++)
-                {
-                    var index = permutation[j];
-                    var size = dict[j];
-                    chunks[index] = fileData.Skip(read).Take(size).ToArray();
-                    read += size;
-                }
-
-
                 var newFilename = pureFilename;
                 foreach (var j in permutation)
                     newFilename += j;
                 newFilename += extension;
                 newFilename = Path.Combine(directory ?? "", newFilename);
                 var newFile = File.Open(newFilename, FileMode.Create);
+
+
+                var chunks = new List<byte>[chunkCount];
+                var skip = 0;
+                foreach (var idx in permutation)
+                {
+                    var take = dict[idx];
+                    chunks[idx] = fileData.Skip(skip).Take(take).ToList();
+                    skip += take;
+                }
+                
                 for (int j = 0; j < chunkCount; j++)
-                    newFile.Write(chunks[j], 0, chunks[j].Length);
+                {
+                    var data = chunks[j].ToArray();
+                    newFile.Write(data, 0, data.Length);
+                }
+
                 newFile.Close();
             }
 
