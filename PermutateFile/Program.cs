@@ -84,7 +84,7 @@
 
         var permutations = GetPermutations(set);
 
-        var moved = false;
+        var answers = new List<byte[]>();
         foreach (var permutation in permutations)
         {
             var orj = true;
@@ -113,14 +113,25 @@
 
             var stream = new MemoryStream(newFileData.ToArray());
             if (!parser.IsCorrupted(stream))
-            {
-                MoveTo(filename, "OK");
-                moved = true;
-                break;
-            }
+                answers.Add(newFileData.ToArray());
         }
 
-        if (!moved)
+        if (answers.Count == 1)
+        {
+            WriteTo(filename, "OK", answers[0], -1);
+            File.Delete(filename);
+        }
+        else if (answers.Count > 1)
+        {
+            for (var j = 0; j < answers.Count; j++)
+            {
+                var answer = answers[j];
+                WriteTo(filename, "Multi", answer, j);
+            }
+
+            File.Delete(filename);
+        }
+        else
             MoveTo(filename, "Corrupted");
     }
 }
@@ -135,6 +146,27 @@ void MoveTo(string filename, string folder)
         Directory.CreateDirectory(newFolder);
     var newFilename = Path.Combine(newFolder, pureFilename);
     File.Move(filename, newFilename);
+}
+
+void WriteTo(string filename, string folder, byte[] fileData, int index)
+{
+    var fileId = Path.GetDirectoryName(filename).Substring(args[0].Length + 1);
+    var pureFilename = Path.GetFileNameWithoutExtension(filename);
+    var extension = Path.GetExtension(filename);
+
+    var newFolder = Path.Combine(args[0], "..", folder, fileId);
+    if (!Directory.Exists(newFolder))
+        Directory.CreateDirectory(newFolder);
+    string newFilename = "";
+    
+    if (index > 0)
+        newFilename = Path.Combine(newFolder, pureFilename + $"_{index}") + extension;
+    else
+        newFilename = Path.Combine(newFolder, pureFilename) + extension;
+
+    var file = File.OpenWrite(newFilename);
+    file.Write(fileData, 0, fileData.Length);
+    file.Close();
 }
 
 List<List<int>> GetPermutations(List<int> set)
