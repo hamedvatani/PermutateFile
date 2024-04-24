@@ -7,4 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Aspose.PDF" Version="24.4.0" />
+    <PackageReference Include="SharpCompress" Version="0.37.0" />
+  </ItemGroup>
+
 </Project>
