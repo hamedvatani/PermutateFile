@@ -14,7 +14,7 @@ var filenames = Directory.GetFiles(args[0], "*.*", SearchOption.AllDirectories);
 for (int i = 0; i < filenames.Length; i++)
 {
     var filename = filenames[i];
-    Console.WriteLine($"Procesing {i + 1} of {filenames.Length}, {filename}");
+    Console.WriteLine($"Procesing {i + 1} of {filenames.Length}");
 
     var extension = Path.GetExtension(filename);
 
@@ -75,17 +75,6 @@ for (int i = 0; i < filenames.Length; i++)
     var answers = new List<byte[]>();
     foreach (var permutation in permutations)
     {
-        var orj = true;
-        for (int j = 0; j < permutation.Count; j++)
-            if (permutation[j] != j)
-            {
-                orj = false;
-                break;
-            }
-
-        if (orj)
-            continue;
-
         var chunks = new List<byte>[chunkCount];
         var skip = 0;
         foreach (var idx in permutation)
